@@ -31,7 +31,7 @@
       ],
       "parameters": {
         "language": "javaScript",
-        "jsCode": "// Parse Evolution API MESSAGES_UPSERT payload\nconst body = $input.first().json.body || $input.first().json;\nconst data = body.data || {};\nconst key = data.key || {};\n\nconst remoteJid = key.remoteJid || '';\nconst phone = remoteJid.split('@')[0] || null;\nconst fromMe = Boolean(key.fromMe);\nconst msgId = key.id || null;\nconst pushName = data.pushName || null;\n\n// Skip group messages (remoteJid has @g.us)\nif (remoteJid.endsWith('@g.us')) {\n  return [];\n}\n\n// Extract message body across Evolution types\nconst m = data.message || {};\nlet text = null;\nconst mt = data.messageType || 'unknown';\n\nif (m.conversation) text = m.conversation;\nelse if (m.extendedTextMessage && m.extendedTextMessage.text) text = m.extendedTextMessage.text;\nelse if (m.imageMessage && m.imageMessage.caption) text = m.imageMessage.caption;\nelse if (m.videoMessage && m.videoMessage.caption) text = m.videoMessage.caption;\nelse if (m.documentMessage && m.documentMessage.caption) text = m.documentMessage.caption;\nelse if (m.audioMessage) text = '[audio]';\nelse if (m.stickerMessage) text = '[sticker]';\nelse if (m.locationMessage) text = '[location]';\nelse if (m.contactMessage) text = '[contact]';\n\n// Skip if no id (can't dedup) or no phone\nif (!msgId || !phone) return [];\n\nreturn [{\n  json: {\n    evolution_msg_id: msgId,\n    phone,\n    contact_name: fromMe ? null : pushName,\n    direction: fromMe ? 'out' : 'in',\n    body: text,\n    message_type: mt,\n    conversation_id: remoteJid,\n    metadata: {\n      instance: body.instance || null,\n      event: body.event || null,\n      timestamp: data.messageTimestamp || null\n    }\n  }\n}];\n"
+        "jsCode": "// Parse Evolution API MESSAGES_UPSERT payload\nconst body = $input.first().json.body || $input.first().json;\nconst data = body.data || {};\nconst key = data.key || {};\n\nconst remoteJid = key.remoteJid || '';\nconst phone = remoteJid.split('@')[0] || null;\nconst fromMe = Boolean(key.fromMe);\nconst msgId = key.id || null;\nconst pushName = data.pushName || null;\n\n// Skip group messages\nif (remoteJid.endsWith('@g.us')) return [];\n\nconst m = data.message || {};\nlet text = null;\nconst mt = data.messageType || 'unknown';\n\nif (m.conversation) text = m.conversation;\nelse if (m.extendedTextMessage && m.extendedTextMessage.text) text = m.extendedTextMessage.text;\nelse if (m.imageMessage && m.imageMessage.caption) text = m.imageMessage.caption;\nelse if (m.videoMessage && m.videoMessage.caption) text = m.videoMessage.caption;\nelse if (m.documentMessage && m.documentMessage.caption) text = m.documentMessage.caption;\nelse if (m.audioMessage) text = '[audio]';\nelse if (m.stickerMessage) text = '[sticker]';\nelse if (m.locationMessage) text = '[location]';\nelse if (m.contactMessage) text = '[contact]';\n\nif (!msgId || !phone) return [];\n\nreturn [{\n  json: {\n    evolution_msg_id: msgId,\n    phone,\n    contact_name: fromMe ? null : pushName,\n    direction: fromMe ? 'out' : 'in',\n    body: text,\n    message_type: mt,\n    conversation_id: remoteJid,\n    metadata: JSON.stringify({\n      instance: body.instance || null,\n      event: body.event || null,\n      timestamp: data.messageTimestamp || null\n    })\n  }\n}];\n"
       }
     },
     {
@@ -45,15 +45,48 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres Local (melgarbot)"
+          "name": "Postgres EasyPanel (melgarbot)"
         }
       },
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO messages\n  (evolution_msg_id, phone, contact_name, direction, body, message_type, conversation_id, metadata)\nVALUES\n  ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)\nON CONFLICT (evolution_msg_id) DO NOTHING\nRETURNING id;",
-        "options": {
-          "queryReplacement": "={{ $json.evolution_msg_id }}, {{ $json.phone }}, {{ $json.contact_name }}, {{ $json.direction }}, {{ $json.body }}, {{ $json.message_type }}, {{ $json.conversation_id }}, {{ JSON.stringify($json.metadata) }}"
-        }
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evolution_msg_id": "={{ $json.evolution_msg_id }}",
+            "phone": "={{ $json.phone }}",
+            "contact_name": "={{ $json.contact_name }}",
+            "direction": "={{ $json.direction }}",
+            "body": "={{ $json.body }}",
+            "message_type": "={{ $json.message_type }}",
+            "conversation_id": "={{ $json.conversation_id }}",
+            "metadata": "={{ $json.metadata }}"
+          },
+          "matchingColumns": [
+            "evolution_msg_id"
+          ],
+          "schema": [
+            { "id": "evolution_msg_id", "displayName": "evolution_msg_id", "type": "string", "canBeUsedToMatch": true, "required": false },
+            { "id": "phone", "displayName": "phone", "type": "string", "canBeUsedToMatch": true, "required": false },
+            { "id": "contact_name", "displayName": "contact_name", "type": "string", "canBeUsedToMatch": false, "required": false },
+            { "id": "direction", "displayName": "direction", "type": "string", "canBeUsedToMatch": false, "required": false },
+            { "id": "body", "displayName": "body", "type": "string", "canBeUsedToMatch": false, "required": false },
+            { "id": "message_type", "displayName": "message_type", "type": "string", "canBeUsedToMatch": false, "required": false },
+            { "id": "conversation_id", "displayName": "conversation_id", "type": "string", "canBeUsedToMatch": false, "required": false },
+            { "id": "metadata", "displayName": "metadata", "type": "object", "canBeUsedToMatch": false, "required": false }
+          ]
+        },
+        "options": {}
       }
     }
   ],

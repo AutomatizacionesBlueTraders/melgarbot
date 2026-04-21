@@ -28,22 +28,7 @@ export async function extractText(
 }
 
 async function extractPdf(buf: Buffer): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const doc = await pdfjs.getDocument({
-    data: new Uint8Array(buf),
-    isEvalSupported: false,
-    useSystemFonts: true,
-  }).promise;
-
-  const parts: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const text = content.items
-      .map((it) => ("str" in it ? it.str : ""))
-      .join(" ");
-    if (text.trim()) parts.push(text);
-  }
-  await doc.destroy();
-  return parts.join("\n\n");
+  const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+  const data = await pdfParse(buf);
+  return data.text;
 }
