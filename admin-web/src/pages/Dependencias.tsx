@@ -74,7 +74,7 @@ export default function Dependencias() {
               className="mt-1 w-full border rounded px-3 py-2" />
           </label>
           {err && <div className="text-sm text-red-600">{err}</div>}
-          <button className="bg-slate-900 text-white rounded px-4 py-2">Crear</button>
+          <button className="bg-melgar-500 hover:bg-melgar-600 text-white rounded px-4 py-2 font-medium">Crear</button>
         </form>
       )}
     </div>

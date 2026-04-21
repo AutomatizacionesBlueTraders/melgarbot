@@ -9,6 +9,29 @@ import { embedBatch, toPgVector } from "../lib/embed.js";
 export default async function documentsRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authPreHandler);
 
+  // Listado: super_admin ve todos; dependencia_admin solo los suyos
+  app.get("/documents", async (req) => {
+    const u = req.user!;
+    const params: unknown[] = [];
+    const where: string[] = [];
+    if (u.r === "dependencia_admin") {
+      where.push(`d.dependencia_id = $${params.length + 1}`);
+      params.push(u.dep);
+    }
+    const sql = `
+      SELECT d.id, d.filename, d.mime_type, d.size_bytes, d.status, d.error_message,
+             d.created_at, d.processed_at,
+             d.dependencia_id, dep.slug AS dependencia_slug, dep.name AS dependencia_name,
+             (SELECT COUNT(*)::int FROM chunks c WHERE c.document_id = d.id) AS chunks
+        FROM documents d
+        JOIN dependencias dep ON dep.id = d.dependencia_id
+      ${where.length ? "WHERE " + where.join(" AND ") : ""}
+      ORDER BY d.id DESC
+      LIMIT 500`;
+    const { rows } = await pool.query(sql, params);
+    return rows;
+  });
+
   // POST /documents/upload  — multipart/form-data: file + dependencia_id
   app.post("/documents/upload", async (req, reply) => {
     const u = req.user!;

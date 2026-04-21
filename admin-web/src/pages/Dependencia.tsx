@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, getToken } from "../api";
+import { api } from "../api";
 import { useAuth } from "../auth";
 
 type Doc = {
@@ -24,8 +24,6 @@ type Detail = {
   documents: Doc[];
 };
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
-
 export default function Dependencia() {
   const { id } = useParams<{ id: string }>();
   const { me } = useAuth();
@@ -34,8 +32,6 @@ export default function Dependencia() {
   const [err, setErr] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
 
   const load = () =>
     api<Detail>(`/dependencias/${id}`).then((d) => {
@@ -60,35 +56,6 @@ export default function Dependencia() {
     nav("/dependencias");
   };
 
-  const onUpload = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!file) return;
-    setUploading(true);
-    setErr(null);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("dependencia_id", String(id));
-      const r = await fetch(`${API}/documents/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: fd,
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((j as { error?: string }).error || `HTTP ${r.status}`);
-      setFile(null);
-      (document.getElementById("file-input") as HTMLInputElement | null)?.value && ((document.getElementById("file-input") as HTMLInputElement).value = "");
-      load();
-    } catch (e) { setErr(e instanceof Error ? e.message : "error"); }
-    finally { setUploading(false); }
-  };
-
-  const onDeleteDoc = async (docId: string) => {
-    if (!confirm("¿Borrar documento?")) return;
-    await api(`/documents/${docId}`, { method: "DELETE" });
-    load();
-  };
-
   if (err && !data) return <div className="text-red-600">{err}</div>;
   if (!data) return <div>Cargando…</div>;
 
@@ -97,41 +64,44 @@ export default function Dependencia() {
       <Link to="/dependencias" className="text-sm text-slate-500 hover:underline">← Volver</Link>
       <h1 className="text-2xl font-semibold mt-2 mb-4">{data.name}</h1>
 
-      <form onSubmit={onSave} className="bg-white rounded shadow-sm p-4 max-w-md space-y-3 mb-6">
+      <form onSubmit={onSave} className="bg-white rounded-lg shadow-sm p-5 max-w-md space-y-3 mb-6">
         <h2 className="font-semibold">Editar</h2>
         <div className="text-sm text-slate-500">Slug: /{data.slug}</div>
         <label className="block text-sm">
           <span className="text-slate-600">Nombre</span>
           <input value={name} onChange={(e) => setName(e.target.value)} required
-            className="mt-1 w-full border rounded px-3 py-2" />
+            className="mt-1 w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-melgar-500/40" />
         </label>
         <label className="block text-sm">
           <span className="text-slate-600">Descripción</span>
           <input value={description} onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 w-full border rounded px-3 py-2" />
+            className="mt-1 w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-melgar-500/40" />
         </label>
         {err && <div className="text-sm text-red-600">{err}</div>}
-        <div className="flex gap-2">
-          <button className="bg-slate-900 text-white rounded px-4 py-2">Guardar</button>
+        <div className="flex gap-3 items-center">
+          <button className="bg-melgar-500 hover:bg-melgar-600 text-white rounded px-4 py-2 font-medium">Guardar</button>
           {me?.role === "super_admin" && (
-            <button type="button" onClick={onDelete} className="text-red-700 hover:text-red-900 text-sm">Borrar dependencia</button>
+            <button type="button" onClick={onDelete} className="text-red-700 hover:text-red-900 text-sm">
+              Borrar dependencia
+            </button>
           )}
         </div>
       </form>
 
-      <div className="bg-white rounded shadow-sm p-4 mb-6">
-        <h2 className="font-semibold mb-3">Documentos ({data.documents.length})</h2>
-        <form onSubmit={onUpload} className="flex items-end gap-2 mb-4">
-          <input id="file-input" type="file" accept=".pdf,.docx,.txt,.md"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="text-sm" />
-          <button disabled={!file || uploading}
-            className="bg-slate-900 text-white rounded px-4 py-2 text-sm disabled:opacity-50">
-            {uploading ? "Subiendo…" : "Subir y vectorizar"}
-          </button>
-        </form>
+      <div className="bg-white rounded-lg shadow-sm p-5">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="font-semibold">Documentos ({data.documents.length})</h2>
+          <Link
+            to={`/documentos?dep=${data.id}`}
+            className="text-sm bg-melgar-500 hover:bg-melgar-600 text-white rounded px-3 py-1.5"
+          >
+            Subir documento
+          </Link>
+        </div>
         <div className="divide-y">
-          {data.documents.length === 0 && <div className="text-slate-500 py-2">Sin documentos todavía.</div>}
+          {data.documents.length === 0 && (
+            <div className="text-slate-500 py-3">Sin documentos todavía.</div>
+          )}
           {data.documents.map((d) => (
             <div key={d.id} className="py-2 flex justify-between items-center">
               <div>
@@ -141,10 +111,7 @@ export default function Dependencia() {
                 </div>
                 {d.status === "failed" && <div className="text-sm text-red-600 mt-1">{d.error_message}</div>}
               </div>
-              <div className="flex items-center gap-3">
-                <StatusBadge status={d.status} />
-                <button onClick={() => onDeleteDoc(d.id)} className="text-red-700 hover:text-red-900 text-sm">✕</button>
-              </div>
+              <StatusBadge status={d.status} />
             </div>
           ))}
         </div>

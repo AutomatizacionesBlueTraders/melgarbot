@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+@theme {
+  --color-melgar-50:  #fff4ec;
+  --color-melgar-100: #ffe1c8;
+  --color-melgar-200: #ffc38a;
+  --color-melgar-300: #ffa44c;
+  --color-melgar-400: #ff8d20;
+  --color-melgar-500: #ff6d00;
+  --color-melgar-600: #e05f00;
+  --color-melgar-700: #b24b00;
+  --color-melgar-800: #7a3300;
+}
+
 html, body, #root {
   height: 100%;
 }

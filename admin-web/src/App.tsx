@@ -6,6 +6,7 @@ import Conversaciones from "./pages/Conversaciones";
 import Conversacion from "./pages/Conversacion";
 import Dependencias from "./pages/Dependencias";
 import Dependencia from "./pages/Dependencia";
+import Documentos from "./pages/Documentos";
 import Users from "./pages/Users";
 import type { ReactElement } from "react";
 
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/conversaciones/:phone" element={<RequireAuth superOnly><Conversacion /></RequireAuth>} />
             <Route path="/dependencias" element={<Dependencias />} />
             <Route path="/dependencias/:id" element={<Dependencia />} />
+            <Route path="/documentos" element={<Documentos />} />
             <Route path="/users" element={<RequireAuth superOnly><Users /></RequireAuth>} />
           </Route>
         </Routes>
