@@ -1,0 +1,33 @@
+# Secrets / env
+.env
+.env.*
+!.env.docker.example
+
+# Docker volumes (si se montan en el dir)
+postgres_data/
+n8n_data/
+pgadmin_data/
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+**/.turbo/
+
+# Admin storage (archivos subidos)
+admin/storage/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/settings.local.json

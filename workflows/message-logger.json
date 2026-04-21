@@ -1,0 +1,87 @@
+{
+  "name": "Message Logger - Evolution API",
+  "nodes": [
+    {
+      "id": "webhook-1",
+      "name": "WebhookEvolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-logger",
+        "responseMode": "onReceived",
+        "responseCode": 200,
+        "responseData": "success",
+        "options": {}
+      },
+      "webhookId": "c524082c-06e4-4e50-a27f-67dc4a2e9689"
+    },
+    {
+      "id": "code-1",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Parse Evolution API MESSAGES_UPSERT payload\nconst body = $input.first().json.body || $input.first().json;\nconst data = body.data || {};\nconst key = data.key || {};\n\nconst remoteJid = key.remoteJid || '';\nconst phone = remoteJid.split('@')[0] || null;\nconst fromMe = Boolean(key.fromMe);\nconst msgId = key.id || null;\nconst pushName = data.pushName || null;\n\n// Skip group messages (remoteJid has @g.us)\nif (remoteJid.endsWith('@g.us')) {\n  return [];\n}\n\n// Extract message body across Evolution types\nconst m = data.message || {};\nlet text = null;\nconst mt = data.messageType || 'unknown';\n\nif (m.conversation) text = m.conversation;\nelse if (m.extendedTextMessage && m.extendedTextMessage.text) text = m.extendedTextMessage.text;\nelse if (m.imageMessage && m.imageMessage.caption) text = m.imageMessage.caption;\nelse if (m.videoMessage && m.videoMessage.caption) text = m.videoMessage.caption;\nelse if (m.documentMessage && m.documentMessage.caption) text = m.documentMessage.caption;\nelse if (m.audioMessage) text = '[audio]';\nelse if (m.stickerMessage) text = '[sticker]';\nelse if (m.locationMessage) text = '[location]';\nelse if (m.contactMessage) text = '[contact]';\n\n// Skip if no id (can't dedup) or no phone\nif (!msgId || !phone) return [];\n\nreturn [{\n  json: {\n    evolution_msg_id: msgId,\n    phone,\n    contact_name: fromMe ? null : pushName,\n    direction: fromMe ? 'out' : 'in',\n    body: text,\n    message_type: mt,\n    conversation_id: remoteJid,\n    metadata: {\n      instance: body.instance || null,\n      event: body.event || null,\n      timestamp: data.messageTimestamp || null\n    }\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "pg-1",
+      "name": "Insert Message",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        720,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres Local (melgarbot)"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages\n  (evolution_msg_id, phone, contact_name, direction, body, message_type, conversation_id, metadata)\nVALUES\n  ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)\nON CONFLICT (evolution_msg_id) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $json.evolution_msg_id }}, {{ $json.phone }}, {{ $json.contact_name }}, {{ $json.direction }}, {{ $json.body }}, {{ $json.message_type }}, {{ $json.conversation_id }}, {{ JSON.stringify($json.metadata) }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Insert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WebhookEvolution": {
+      "main": [
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
