@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHash } from "crypto";
-import { promises as fs } from "fs";
-import path from "path";
 import { pool } from "@/lib/db";
 import { extractText } from "@/lib/extract";
 import { chunkText } from "@/lib/chunk";
@@ -10,13 +8,7 @@ import { embedBatch, toPgVector } from "@/lib/embed";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-const STORAGE_DIR =
-  process.env.STORAGE_DIR ||
-  path.join(process.cwd(), "storage", "documents");
-
 export async function POST(req: Request) {
-  await fs.mkdir(STORAGE_DIR, { recursive: true });
-
   const form = await req.formData();
   const file = form.get("file");
   const depIdRaw = form.get("dependencia_id");
@@ -43,17 +35,13 @@ export async function POST(req: Request) {
 
   const buf = Buffer.from(await file.arrayBuffer());
   const hash = createHash("sha256").update(buf).digest("hex");
-  const ext = path.extname(file.name) || "";
-  const storedName = `${hash}${ext}`;
-  const storagePath = path.join(STORAGE_DIR, storedName);
-  await fs.writeFile(storagePath, buf);
 
   const ins = await pool.query(
     `INSERT INTO documents
        (dependencia_id, filename, file_path, mime_type, size_bytes, content_hash, status)
      VALUES ($1, $2, $3, $4, $5, $6, 'processing')
      RETURNING id`,
-    [depId, file.name, storagePath, file.type || null, buf.length, hash],
+    [depId, file.name, "", file.type || null, buf.length, hash],
   );
   const docId = ins.rows[0].id as number;
 

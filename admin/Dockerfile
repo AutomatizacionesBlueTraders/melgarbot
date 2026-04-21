@@ -31,9 +31,6 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-RUN mkdir -p /app/storage/documents && chown -R nextjs:nodejs /app/storage
-VOLUME /app/storage
-
 USER nextjs
 EXPOSE 3000
 

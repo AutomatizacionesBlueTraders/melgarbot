@@ -80,13 +80,9 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:-melgar_dev_pw}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      STORAGE_DIR: /app/storage/documents
       NODE_ENV: production
-    volumes:
-      - admin_storage:/app/storage
 
 volumes:
   postgres_data:
   n8n_data:
   pgadmin_data:
-  admin_storage:
