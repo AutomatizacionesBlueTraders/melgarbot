@@ -36,7 +36,6 @@ services:
       TZ: America/Bogota
       N8N_RUNNERS_ENABLED: "true"
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
-      # Postgres accesible para n8n desde nodos: hostname interno = "postgres"
       MELGAR_PG_HOST: postgres
       MELGAR_PG_PORT: 5432
       MELGAR_PG_DB: ${POSTGRES_DB:-melgarbot}
@@ -61,17 +60,17 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
-  admin:
+  admin-api:
     build:
-      context: ./admin
+      context: ./admin-api
       dockerfile: Dockerfile
-    container_name: melgar_admin
+    container_name: melgar_admin_api
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
       PGHOST: postgres
       PGPORT: 5432
@@ -80,7 +79,21 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:-melgar_dev_pw}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       NODE_ENV: production
+
+  admin-web:
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+    container_name: melgar_admin_web
+    restart: unless-stopped
+    depends_on:
+      - admin-api
+    ports:
+      - "3000:80"
 
 volumes:
   postgres_data:
